@@ -3,7 +3,7 @@ _pkgname=exdongle
 pkgname=$_pkgname-git
 pkgver=20101222
 pkgrel=1
-pkgdesc="provides 'AutoRun' capabilities to Linux systems (based on script by Gogodidi)"
+pkgdesc="provides 'AutoRun' capabilities to Linux systems (based on a script by Gogodidi)"
 arch=('any')
 url="https://wiki.archlinux.org/index.php/Execute_on_usb_insert"
 license=('unknown')
@@ -22,7 +22,7 @@ source=()
 noextract=()
 md5sums=() #generate with 'makepkg -g'
 
-_gitroot="http://github.com/paradoq/exdongle.git"
+_gitroot="git://github.com/matthewbauer/exdongle.git"
 _gitname="$_pkgname"
 
 build() {
@@ -42,14 +42,14 @@ build() {
 }
 
 package() {
-  cd "$srcdir/$_gitname-build"
+  cd "$srcdir/$_gitname"
 
   install -D -m775 exdongle $pkgdir/usr/bin/exdongle
   install -D -m775 exdongle.conf $pkgdir/etc/exdongle.conf
   install -D -m660 exdongle.key $pkgdir/etc/exdongle.key
   install -D -m777 autorun.example $pkgdir/usr/share/exdongle/autorun.example
   install -D -m777 udev.example $pkgdir/usr/share/exdongle/udev.example
-  install -D -m777 udisks.example $pkgdir/usr/share/exdongle/udisks.example
+  install -D -m777 udiskie.example $pkgdir/usr/share/exdongle/udiskie.example
   install -D -m644 README $pkgdir/usr/share/doc/exdongle/README
 }
 
