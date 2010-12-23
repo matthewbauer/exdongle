@@ -1,0 +1,210 @@
+#!/bin/sh
+
+# exdongle mkexdongle
+
+###############################################################################
+
+CONFFILE="/etc/exdongle.conf"
+KEYFILE="/etc/exdongle.key"
+#SERIALFILE="/etc/exdongle.serials"
+
+###############################################################################
+
+function usage() {
+
+  echo ""
+  echo "USAGE: $0 new <DIR> <PROG>"
+  echo "       $0 del <DIR>"
+  echo "       $0 conf [-k KEY] [-c COMMAND] [-s SWITCH]"
+  echo "       $0 run <DIR>"
+  echo ""
+  echo "  new:"
+  echo "    DIR <S>:    The directory on the dongle to execute"
+  echo "    SCRIPT <S>: The script to run on dongle"
+  echo ""
+  echo "  del:"
+  echo "    DIR [S]: The directory on the dongle to execute"
+  echo ""
+  echo "  conf:"
+  echo "    -k <S>: specify key"
+  echo "    -c <S>: command to use to run script"
+  echo "    -s <on|off>: Activate or deactivate exdongle"
+  echo ""
+  echo "  run:"
+  echo "    DIR <S>: Directory to find script in"
+  echo ""
+
+  exit 0
+
+}
+
+###############################################################################
+
+function new() {
+
+  if [ ! "$#" -eq 3 ]; then
+    usage $@
+    exit 1
+  fi
+
+  DIR="$2"
+  PROG="$3"
+  PLOC="$DIR/.$(hostname)"
+  rm -rf "$PLOC"
+  mkdir "$PLOC"
+  cp "$KEYFILE" "$PLOC/key"
+  cp "$PROG" "$PLOC/run"
+
+  exit 0
+
+}
+
+###############################################################################
+
+function del() {
+
+  DIR="$2"
+  PLOC="$DIR/.$(hostname)"
+
+  if [ -e "$PLOC" ]; then
+    rm -rf "$PLOC"
+  fi
+
+  exit 0
+
+}
+
+###############################################################################
+
+function conf() {
+
+  shift
+  while getopts "k:c:s:" optname; do
+    case "$optname" in
+      k)
+        key="$OPTARG"
+        ;;
+      c)
+        command="$OPTARG"
+        ;;
+      s)
+        if [ "$OPTARG" = "on" ] || [ "$OPTARG" = "off" ]; then
+          switch="$OPTARG"
+        fi
+        ;;
+    esac
+  done
+
+  if [ -z "$command" ]; then
+    command='nice'
+  fi
+
+  if [ -z "$switch" ]; then
+    switch='on'
+  fi
+
+  echo "# exdongle configuration file" > "$CONFFILE"
+  echo "command=\"$command\"" >> "$CONFFILE"
+  echo "switch=\"$switch\"" >> "$CONFFILE"
+
+  chmod ug=rwx,o=rx "$CONFFILE"
+
+  if [ ! -z "$key" ]; then
+    echo "$key" > "$KEYFILE"
+  else
+    if [ -f "$KEYFILE" ]; then
+      exit 0
+    elif which openssl > /dev/null; then
+      echo 'generating key with openssl'
+      openssl rand 256 > "$KEYFILE"
+    else
+      echo 'must provide a key.' 1>&2
+      exit 1
+    fi
+  fi
+
+  chmod ug=rw "$KEYFILE"
+
+  exit 0
+
+}
+
+###############################################################################
+
+function run() {
+
+  if [ ! "$switch" = "on" ]; then
+    exit 0
+  fi
+
+  if [ ! "$#" -eq 2 ]; then
+    usage $@
+    exit 1
+  fi
+
+  DIR="$2"
+  PLOC="$DIR/.$(hostname)"
+
+  if [ ! -e "$PLOC" ]; then
+    echo "drive does not have an autorun folder for this computer!" 1>&2
+    exit 0
+  fi
+
+  if [ -e "$PLOC/key" ] && [ -e "$KEYFILE" ]; then
+    if cmp "$PLOC/key" "$KEYFILE"; then
+      verified=1
+    else
+      echo 'the keys do not match. program will not be run.' 1>&2
+      exit 0
+    fi
+  else
+    echo 'we need a key file to verify that the device was authorized.' 1>&2
+    exit 4
+  fi
+
+  #if [ -e "$SERIALS" ]; then
+  #  flash_serial=$(udevadm info --name=/dev/sdb1 --query=property | sed -rn 's/^ID_SERIAL=(.*)$/\1/')
+  #fi
+
+  if [ ! -z "$verified" ]; then
+    cd "$DIR"
+    cp "$PLOC/run" "/tmp/exdongle"
+    chmod u+x "/tmp/exdongle"
+    $command "/tmp/exdongle" "$DIR"
+    rm "/tmp/exdongle"
+  fi
+
+  exit 0
+
+}
+
+###############################################################################
+
+if ! groups | grep -q 'root'; then
+  echo "You must be in the root group to perform this operation" 1>&2
+  exit 1
+fi
+
+if [ -e "$CONFFILE" ]; then
+  . "$CONFFILE"
+fi
+
+case "$1" in
+  new)
+    new "$@"
+    ;;
+  del)
+    del "$@"
+    ;;
+  conf)
+    conf "$@" 
+    ;;
+  run)
+    run "$@"
+    ;;
+  *)
+    usage "$@"
+    ;;
+esac
+
+exit 0

@@ -1,0 +1,7 @@
+#!/bin/sh
+
+if [ "$1" = 'after_mount' ] && [ ! -z "$2" ]; then
+	exdongle run "$2"
+fi
+
+

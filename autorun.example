@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# to install this on your flash drive run "exdongle new MOUNT_DIR example.sh"
+
+export DISPLAY=:0
+
+zenity --info --text hi
+
+rsync -a $HOME/backup/ ./backup/
+comm -23 <(pacman -Qeq) <(pacman -Qmq) > ./backup/pkglist
+
+
